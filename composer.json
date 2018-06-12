@@ -1,0 +1,19 @@
+{
+    "name": "bdunogier/ezplatform-filebased-contenttype",
+    "description": "An eZ Platform package that allows to define Content Types from files, without writing the to the Repository.",
+    "type": "ezplatform-bundle",
+    "require": {
+        "ezsystems/ezpublish-kernel": "^7.0"
+    },
+    "require-dev": {
+        "behat/behat": "^3.4"
+    },
+    "license": "BSD",
+    "authors": [
+        {
+            "name": "Bertrand Dunogier",
+            "email": "bertrand.dunogier@ez.no"
+        }
+    ],
+    "minimum-stability": "stable"
+}
