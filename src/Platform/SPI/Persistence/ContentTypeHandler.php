@@ -209,7 +209,7 @@ class ContentTypeHandler implements SPI\Handler
      */
     private function newType(array $parameters)
     {
-        return $this->typesById($this->extractId($parameters));
+        return $this->typesById[$this->extractId($parameters)];
     }
 
     /**
@@ -238,7 +238,7 @@ class ContentTypeHandler implements SPI\Handler
         extract($parameters);
 
         if (isset($identifier) && is_string($identifier)) {
-            if (!isset($this->typesByRemoteId[$identifier])) {
+            if (!isset($this->typesIdsByIdentifier[$identifier])) {
                 throw new InvalidArgumentException(
                     'identifier',
                     'No File based content type with this identifier'
