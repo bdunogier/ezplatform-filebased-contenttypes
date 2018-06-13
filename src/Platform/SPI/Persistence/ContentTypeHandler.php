@@ -20,7 +20,7 @@ class ContentTypeHandler implements SPI\Handler
 
     /**
      * File based content type classes, indexed by {@see self::$innerHandler} compatible id.
-     * @var array
+     * @var SpiType[]
      */
     private $typesById = [];
 
@@ -30,10 +30,24 @@ class ContentTypeHandler implements SPI\Handler
      */
     private $typesIdsByIdentifier = [];
 
-    public function __construct(SPI\Handler $innerHandler, array $contentTypes = [])
+    /**
+     * Map of {@see self::$typesBy} by remoteId.
+     * @var string[]
+     */
+    private $typesIdsByRemoteId = [];
+
+    public function __construct(SPI\Handler $innerHandler, array $typesProviders = [])
     {
         $this->innerHandler = $innerHandler;
-        $this->typesById = $contentTypes;
+
+        foreach ($typesProviders as $typeProvider) {
+            $type = $typeProvider->getType();
+            $id = $type->id;
+
+            $this->typesById[$id] = $type;
+            $this->typesIdsByIdentifier[$type->identifier] = $id;
+            $this->typesIdsByRemoteId[$type->remoteId] = $id;
+        }
     }
 
     /**
@@ -46,8 +60,7 @@ class ContentTypeHandler implements SPI\Handler
     {
         $persistenceContentTypes = $this->innerHandler->loadContentTypes($groupId, $status);
 
-        foreach ($this->typesById as $typeClass) {
-            $type = (new $typeClass)->getType();
+        foreach ($this->typesById as $type) {
             if (in_array($groupId, $type->groupIds)) {
                 $persistenceContentTypes[] = $type;
             }
@@ -196,9 +209,7 @@ class ContentTypeHandler implements SPI\Handler
      */
     private function newType(array $parameters)
     {
-        $builder = $this->typesById($this->extractId($parameters));
-
-        return (new $builder)->getType();
+        return $this->typesById($this->extractId($parameters));
     }
 
     /**
@@ -227,9 +238,21 @@ class ContentTypeHandler implements SPI\Handler
         extract($parameters);
 
         if (isset($identifier) && is_string($identifier)) {
+            if (!isset($this->typesByRemoteId[$identifier])) {
+                throw new InvalidArgumentException(
+                    'identifier',
+                    'No File based content type with this identifier'
+                );
+            }
             $id = $this->typesIdsByIdentifier[$identifier];
         } else if (isset($remoteId)) {
-            $id = $remoteId;
+            if (!isset($this->typesByRemoteId[$remoteId])) {
+                throw new InvalidArgumentException(
+                    'remoteId',
+                    'No File based content type with this remoteId'
+                );
+            }
+            $id = $this->typesByRemoteId[$remoteId];
         } else if (!isset($id)) {
             throw new InvalidArgumentException(
                 'parameters',

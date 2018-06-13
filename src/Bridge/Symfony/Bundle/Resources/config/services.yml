@@ -3,11 +3,12 @@ services:
         autowire: true
         autoconfigure: true
         public: false
+    _instanceof:
+        BD\EzPlatformFileBasedContentType\ContentTypeProvider:
+            tags: [ezplatform.content_type_provider]
 
     BD\EzPlatformFileBasedContentType\Platform\SPI\Persistence\ContentTypeHandler:
         decorates: ezpublish.spi.persistence.legacy.content_type.handler.inner
         arguments:
             - '@BD\EzPlatformFileBasedContentType\Platform\SPI\Persistence\ContentTypeHandler.inner'
-            -
-                17: 'AppBundle\Platform\ContentTypes\FileBasedTestContentType'
 
