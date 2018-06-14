@@ -10,9 +10,10 @@ blob posts on the frontend can be published and re-used.
 
 In `app/config/services.yml`:
 
-```yaml
+```yml
 services:
-    _defaults:
+    # ...
+
     AppBundle\Platform\ContentTypes\:
         resource: '../../src/AppBundle/Platform/ContentTypes/*'
         tags: [ezplatform.content_type_provider]
