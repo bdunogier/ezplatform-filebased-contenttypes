@@ -1,8 +1,10 @@
 <?php
 namespace BD\EzPlatformFileBasedContentType\Platform\SPI\Persistence;
 
+use DateTime;
 use eZ\Publish\API\Repository\Exceptions\NotFoundException;
 use eZ\Publish\Core\Base\Exceptions\InvalidArgumentException;
+use eZ\Publish\Core\Persistence\Legacy\Exception\TypeNotFound;
 use eZ\Publish\SPI\Persistence\Content\Type as SPI;
 use eZ\Publish\SPI\Persistence\Content\Type as SpiType;
 
@@ -71,44 +73,42 @@ class ContentTypeHandler implements SPI\Handler
 
     public function load($contentTypeId, $status = SpiType::STATUS_DEFINED)
     {
+        $type = null;
+
         try {
-            return $this->innerHandler->load($contentTypeId, $status);
+            $type = $this->innerHandler->load($contentTypeId, $status);
         }
         catch (NotFoundException $notFoundException) {
-            $parameters = ['id' => $contentTypeId];
-            if ($this->hasType($parameters)) {
-                return $this->newType($parameters);
-            }
-
-            throw $notFoundException;
+            $type = null;
         }
+
+        return $this->completeTypeIfNeeded(['id' => $contentTypeId], $type);
     }
 
     /**
      * @param string $identifier
      * @return SpiType
-     * @throws InvalidArgumentException
      * @throws NotFoundException
      */
     public function loadByIdentifier($identifier)
     {
         try {
-            return $this->innerHandler->loadByIdentifier($identifier);
+            $type = $this->innerHandler->loadByIdentifier($identifier);
         }
         catch (NotFoundException $notFoundException) {
-            $parameters = ['identifier' => $identifier];
-            if ($this->hasType($parameters)) {
-                return $this->newType($parameters);
+            try {
+                $type = $this->innerHandler->loadByIdentifier('_fbct-' . $identifier);
+            } catch (NotFoundException $notFoundException) {
+                $type = null;
             }
-
-            throw $notFoundException;
         }
+
+        return $this->completeTypeIfNeeded(['identifier' => $identifier], $type);
     }
 
     /**
      * @param mixed $remoteId
      * @return SpiType
-     * @throws InvalidArgumentException
      * @throws NotFoundException
      */
     public function loadByRemoteId($remoteId)
@@ -117,13 +117,10 @@ class ContentTypeHandler implements SPI\Handler
             return $this->innerHandler->loadByRemoteId($remoteId);
         }
         catch (NotFoundException $notFoundException) {
-            $parameters = ['remoteId' => $remoteId];
-            if ($this->hasType($parameters)) {
-                return $this->newType($parameters);
-            }
-
-            throw $notFoundException;
+            $type = null;
         }
+
+        return $this->completeTypeIfNeeded(['remoteId' => $remoteId], $type);
     }
 
     public function create(SPI\CreateStruct $contentType)
@@ -215,20 +212,6 @@ class ContentTypeHandler implements SPI\Handler
     /**
      * @param array $parameters
      *
-     * @return bool
-     *
-     * @throws InvalidArgumentException
-     */
-    private function hasType(array $parameters)
-    {
-        $id = $this->extractId($parameters);
-
-        return (isset($this->typesById[$id]));
-    }
-
-    /**
-     * @param array $parameters
-     *
      * @return int|string
      *
      * @throws InvalidArgumentException
@@ -296,5 +279,66 @@ class ContentTypeHandler implements SPI\Handler
     public function loadAllGroups()
     {
         return $this->innerHandler->loadAllGroups();
+    }
+
+    /**
+     * @param SpiType $type
+     *
+     * @return SpiType $type with its real identifier, or untouched if it is not file based.
+     *
+     * @throws NotFoundException
+     */
+    private function configureFileBasedContentTypeIfNeeded(SpiType $type)
+    {
+        if (strpos($type->identifier, '_fbct-') !== 0) {
+            return $type;
+        }
+
+        $identifier = substr($type->identifier, 6);
+        $id = $type->id;
+
+        $type = $this->typesById[$this->typesIdsByIdentifier[$identifier]];
+        $type->id = $id;
+
+        return $type;
+    }
+
+    /**
+     * @param array $parameters
+     * @param SpiType|null $innerType
+     *
+     * @return SpiType
+     *
+     * @throws TypeNotFound
+     * @throws NotFoundException
+     */
+    private function completeTypeIfNeeded(array $parameters, SpiType $innerType = null)
+    {
+        if ($innerType instanceof SpiType) {
+            return $this->configureFileBasedContentTypeIfNeeded($innerType);
+        }
+
+        try {
+            $type = $this->newType($parameters);
+
+            $incompleteTypeDraft = $this->innerHandler->create(
+                new SPI\CreateStruct([
+                    'identifier' => '_fbct-' . $type->identifier,
+                    'remoteId' => $type->remoteId,
+                    'name' => $type->name,
+                    'status' => SpiType::STATUS_DRAFT,
+                    'created' => time(),
+                    'modified' => time(),
+                    'creatorId' => $type->creatorId,
+                    'modifierId' => $type->modifierId,
+                    'initialLanguageId' => $type->initialLanguageId,
+                ])
+            );
+            $this->innerHandler->publish($incompleteTypeDraft->id);
+
+            return $type;
+        } catch (InvalidArgumentException $e) {
+            throw new TypeNotFound($parameters, SpiType::STATUS_DEFINED);
+        }
     }
 }
