@@ -1,5 +1,5 @@
 {
-    "name": "bdunogier/ezplatform-filebased-contenttype",
+    "name": "bdunogier/ezplatform-filebased-contenttypes",
     "description": "An eZ Platform package that allows to define Content Types from files, without writing the to the Repository.",
     "type": "ezplatform-bundle",
     "require": {
