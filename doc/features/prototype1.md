@@ -1,0 +1,3 @@
+- [x] First prototype that adds classes based on PHP files to what the API returns.
+- [x] Define bundle & service
+- [x] Compiler pass that detects ContentTypes on disk and adds them to the service
